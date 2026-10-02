@@ -79,6 +79,7 @@ private extension VNCConnection {
 																			width: region.size.width,
 																			height: region.size.height)
 
+        (delegate as? VNCUpdateTimingObserver)?.framebufferUpdateRequested()
 		try await sendMessage(framebufferUpdateRequest)
 	}
 

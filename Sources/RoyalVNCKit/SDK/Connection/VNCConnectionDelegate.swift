@@ -47,3 +47,9 @@ public protocol VNCConnectionDelegate: AnyObject {
 	func connection(_ connection: VNCConnection,
 					didUpdateCursor cursor: VNCCursor)
 }
+
+/// Optional passive timing hooks; never generate additional framebuffer requests.
+public protocol VNCUpdateTimingObserver: AnyObject {
+    func framebufferUpdateRequested()
+    func framebufferUpdateReceived()
+}

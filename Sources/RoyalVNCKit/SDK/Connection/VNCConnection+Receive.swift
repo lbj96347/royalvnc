@@ -41,6 +41,7 @@ private extension VNCConnection {
 	func didReceive(messageType: UInt8) async throws {
 		switch messageType {
 			case VNCProtocol.FramebufferUpdate.messageType:
+                (delegate as? VNCUpdateTimingObserver)?.framebufferUpdateReceived()
 				try await handleFramebufferUpdateMessage()
 
 			case VNCProtocol.SetColourMapEntries.messageType:

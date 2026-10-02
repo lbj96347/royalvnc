@@ -70,17 +70,14 @@ public final class VNCConnection: NSObjectOrAnyObject {
 
     var mouseButtonState: VNCProtocol.MousePointerButton = [ ]
 
-    lazy var connection: some NetworkConnection = {
+    public var receivedByteCount: UInt64 { connection.receivedByteCount }
+
+    lazy var connection: CountingNetworkConnection = {
         let connectionSettings = NetworkConnectionSettings(connectionTimeout: 15,
                                                            host: settings.hostname,
                                                            port: settings.port)
 
-        // NOTE: To test SocketNetworkConnection on Darwin (macOS, iOS, etc.), comment out the the #if
-#if canImport(Network)
-        let connection = NWConnection(settings: connectionSettings)
-#else
-		let connection = SocketNetworkConnection(settings: connectionSettings)
-#endif
+        let connection = CountingNetworkConnection(settings: connectionSettings)
 
         connection.setStatusUpdateHandler(connectionStatusDidChange)
 
