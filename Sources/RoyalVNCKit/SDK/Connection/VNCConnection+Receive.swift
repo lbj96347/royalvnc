@@ -63,6 +63,17 @@ private extension VNCConnection {
 	}
 
 	func handleFramebufferUpdateMessage() async throws {
+        await framebufferAccess.acquire()
+        do {
+            try await decodeFramebufferUpdateMessage()
+            await framebufferAccess.release()
+        } catch {
+            await framebufferAccess.release()
+            throw error
+        }
+    }
+
+    private func decodeFramebufferUpdateMessage() async throws {
 		guard let framebuffer = framebuffer else {
 			throw VNCError.protocol(.framebufferUpdateReceivedWithoutFramebuffer)
 		}
@@ -83,7 +94,7 @@ private extension VNCConnection {
 		try framebuffer.writeSurface()
 		*/
 
-        (delegate as? VNCFramebufferStatisticsObserver)?.framebufferUpdateCompleted(.init(
+        let statistics = VNCFramebufferUpdateStatistics(
             receivedBytes: connection.receivedByteCount - startBytes + 1,
             transferAndDecodeSeconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000,
             encodingBytes: framebufferUpdate.encodingBytes,
@@ -91,9 +102,14 @@ private extension VNCConnection {
             updatedPixels: framebufferUpdate.rectangles.reduce(0) {
                 $0 + UInt64($1.width) * UInt64($1.height)
             }
-        ))
+        )
+        (delegate as? VNCFramebufferStatisticsObserver)?.framebufferUpdateCompleted(statistics)
+        if let completedFramebuffer = self.framebuffer {
+            (delegate as? VNCFramebufferCompletionObserver)?.connection(self,
+                didCompleteFramebufferUpdate: completedFramebuffer, statistics: statistics)
+        }
         if settings.lowDataMode {
-            framebufferRequestGate.completedUpdate()
+            framebufferRequestGate.completedUpdate(hasPixelChanges: statistics.updatedPixels > 0)
         } else {
             try await sendFramebufferUpdateRequest()
         }
@@ -111,7 +127,9 @@ private extension VNCConnection {
 
 		logger.logDebug("Received Colour Map Entries")
 
-		framebuffer.updateColorMap(colourMapEntries)
+        await framebufferAccess.acquire()
+        framebuffer.updateColorMap(colourMapEntries)
+        await framebufferAccess.release()
 	}
 
 	func handleServerCutTextMessage() async throws {

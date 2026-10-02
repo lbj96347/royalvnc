@@ -62,6 +62,7 @@ public final class VNCConnection: NSObjectOrAnyObject {
 
 	let state = State()
     let framebufferRequestGate = VNCFramebufferRequestGate()
+    let framebufferAccess = VNCFramebufferAccess()
 	let systemSound = VNCSystemSound()
 
 	let clipboard: VNCClipboard

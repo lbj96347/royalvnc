@@ -58,8 +58,11 @@ public extension VNCConnection {
 
 		public let jpegQualityLevel: JPEGQualityLevel
 
-        /// Cap requests at 2/s while observing, 10/s for two seconds after input.
-        public let lowDataMode: Bool
+        /// Whether requests are paced. Balanced also uses pacing; older lowDataMode initializers
+        /// continue to select Low Data or Responsive exactly as before.
+        public var lowDataMode: Bool { framebufferRequestPolicy != .responsive }
+
+        public let framebufferRequestPolicy: VNCFramebufferRequestPolicy
 
 #if canImport(ObjectiveC)
 		@objc(frameEncodings)
@@ -79,7 +82,8 @@ public extension VNCConnection {
 					colorDepth: ColorDepth,
 					frameEncodings: [VNCFrameEncodingType],
                     jpegQualityLevel: JPEGQualityLevel = .level6,
-                    lowDataMode: Bool = false) {
+                    lowDataMode: Bool = false,
+                    framebufferRequestPolicy: VNCFramebufferRequestPolicy? = nil) {
 			self.isDebugLoggingEnabled = isDebugLoggingEnabled
 
 			self.hostname = hostname
@@ -97,7 +101,7 @@ public extension VNCConnection {
 			self.colorDepth = colorDepth
 			self.frameEncodings = frameEncodings
 			self.jpegQualityLevel = jpegQualityLevel
-            self.lowDataMode = lowDataMode
+            self.framebufferRequestPolicy = framebufferRequestPolicy ?? (lowDataMode ? .lowData : .responsive)
 		}
 
 #if canImport(ObjectiveC)

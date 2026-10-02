@@ -66,9 +66,10 @@ private extension VNCConnection {
         if let message = clientToServerMessageQueue.dequeue() {
             try await sendMessage(message)
         } else {
-            try await Task.sleep(seconds: 0.01)
+            let delay = framebufferRequestGate.nextRequestDelay(policy: settings.framebufferRequestPolicy)
+            try await Task.sleep(seconds: max(0.000_001, delay))
         }
-        if !state.disconnectRequested, settings.lowDataMode, framebufferRequestGate.takeRequest() {
+        if !state.disconnectRequested, settings.lowDataMode, framebufferRequestGate.takeRequest(policy: settings.framebufferRequestPolicy) {
             try await sendFramebufferUpdateRequest()
         }
 	}
