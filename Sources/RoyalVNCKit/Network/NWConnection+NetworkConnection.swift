@@ -12,6 +12,7 @@ extension NWConnection: NetworkConnection {
     convenience init(settings: NetworkConnectionSettings) {
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = settings.connectionTimeout
+        tcpOptions.noDelay = true
 
         let connectionParameters = NWParameters(tls: nil,
                                                 tcp: tcpOptions)

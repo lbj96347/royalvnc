@@ -6,7 +6,7 @@ import Foundation
 import Dispatch
 
 public enum VNCFramebufferRequestPolicy: Sendable {
-    case lowData, balanced, responsive
+    case lowData, balanced, responsive, adaptive
 }
 
 /// Governs requests, not rendering. A waiting server must never accumulate requests.
@@ -16,6 +16,7 @@ final class VNCFramebufferRequestGate {
     private var pending = false
     private var outstanding = true // The handshake sends the first, full request.
     private var stopped = false
+    private var lastUpdateHadPixels = true
     private var lastRequest: UInt64 = 0
     private var lastInput: UInt64?
     private var lastMotion: UInt64?
@@ -31,6 +32,7 @@ final class VNCFramebufferRequestGate {
         defer { lock.unlock() }
         outstanding = false
         pending = true
+        lastUpdateHadPixels = hasPixelChanges
         if hasPixelChanges { lastMotion = now }
     }
 
@@ -38,6 +40,7 @@ final class VNCFramebufferRequestGate {
         lock.lock()
         defer { lock.unlock() }
         lastInput = now
+        lastUpdateHadPixels = true
     }
 
     func takeRequest(policy: VNCFramebufferRequestPolicy = .lowData, at now: UInt64 = DispatchTime.now().uptimeNanoseconds) -> Bool {
@@ -63,6 +66,9 @@ final class VNCFramebufferRequestGate {
     }
 
     private func requestInterval(policy: VNCFramebufferRequestPolicy, at now: UInt64) -> UInt64 {
+        if policy == .adaptive {
+            return lastUpdateHadPixels ? 33_333_334 : 500_000_000
+        }
         let active = lastInput.map { now >= $0 && now - $0 < 2_000_000_000 } ?? false
         let motion = policy == .balanced && (lastMotion.map { now >= $0 && now - $0 < 2_000_000_000 } ?? false)
         return (active || motion) ? (policy == .balanced ? 33_333_334 : 100_000_000) : 500_000_000

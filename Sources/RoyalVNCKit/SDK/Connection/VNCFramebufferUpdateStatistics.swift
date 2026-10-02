@@ -8,6 +8,10 @@ import Foundation
 public struct VNCFramebufferUpdateStatistics: Sendable {
     public let receivedBytes: UInt64
     public let transferAndDecodeSeconds: TimeInterval
+    /// Time suspended awaiting network reads, excluding server idle time before the update header.
+    public let networkReadSeconds: TimeInterval
+    /// Update processing time minus network-read suspension; includes parser and pixel work.
+    public var decodeSeconds: TimeInterval { max(0, transferAndDecodeSeconds - networkReadSeconds) }
     /// Encoding ID to bytes consumed by its rectangle headers and payloads, including pseudo encodings.
     public let encodingBytes: [Int64: UInt64]
     public let pixelRectangleCount: Int

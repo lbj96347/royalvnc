@@ -81,6 +81,7 @@ private extension VNCConnection {
 		logger.logDebug("Receiving Framebuffer Update")
 
 		let startBytes = connection.receivedByteCount
+        let startReadWait = connection.readWaitNanoseconds
         let started = DispatchTime.now().uptimeNanoseconds
         let framebufferUpdate = try await VNCProtocol.FramebufferUpdate.receive(connection: connection,
 																				framebuffer: framebuffer,
@@ -97,6 +98,7 @@ private extension VNCConnection {
         let statistics = VNCFramebufferUpdateStatistics(
             receivedBytes: connection.receivedByteCount - startBytes + 1,
             transferAndDecodeSeconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000,
+            networkReadSeconds: Double(connection.readWaitNanoseconds - startReadWait) / 1_000_000_000,
             encodingBytes: framebufferUpdate.encodingBytes,
             pixelRectangleCount: framebufferUpdate.rectangles.count,
             updatedPixels: framebufferUpdate.rectangles.reduce(0) {
@@ -110,6 +112,7 @@ private extension VNCConnection {
         }
         if settings.lowDataMode {
             framebufferRequestGate.completedUpdate(hasPixelChanges: statistics.updatedPixels > 0)
+            outboundWake.signal()
         } else {
             try await sendFramebufferUpdateRequest()
         }

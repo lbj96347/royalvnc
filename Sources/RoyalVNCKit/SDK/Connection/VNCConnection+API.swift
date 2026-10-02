@@ -34,7 +34,7 @@ public extension VNCConnection {
 
 		let sendPixelFormatMessage = VNCProtocol.SetPixelFormat(pixelFormat: newPixelFormat)
 
-		clientToServerMessageQueue.enqueue(sendPixelFormatMessage)
+		enqueueClientToServerMessage(sendPixelFormatMessage)
 
 		recreateFramebuffer(size: framebuffer.size,
 							screens: framebuffer.screens,
@@ -49,7 +49,7 @@ public extension VNCConnection {
 #endif
     func mouseMove(x: UInt16, y: UInt16) {
         enqueueMouseEvent(nonNormalizedX: x,
-                          nonNormalizedY: y)
+                          nonNormalizedY: y, coalesceMove: true)
     }
 
 #if canImport(ObjectiveC)
@@ -143,4 +143,16 @@ public extension VNCConnection {
 	func _objc_keyUp(_ key: UInt32) {
 		keyUp(.init(key))
 	}
+}
+
+public extension VNCConnection {
+    /// Experimental: the caller must independently validate server capability, resize signaling,
+    /// and pointer-coordinate semantics before enabling this on a live session.
+    @discardableResult
+    func requestAppleServerScale(_ scale: Double) -> Bool {
+        guard state.isAppleRemoteDesktop, connectionState.status == .connected,
+              scale == 1 || scale == 0.5 else { return false }
+        enqueueClientToServerMessage(VNCProtocol.AppleServerScale(scale: scale))
+        return true
+    }
 }

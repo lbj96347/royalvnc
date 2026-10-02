@@ -67,7 +67,7 @@ private extension VNCConnection {
             try await sendMessage(message)
         } else {
             let delay = framebufferRequestGate.nextRequestDelay(policy: settings.framebufferRequestPolicy)
-            try await Task.sleep(seconds: max(0.000_001, delay))
+            await outboundWake.wait(seconds: max(0.000_001, delay))
         }
         if !state.disconnectRequested, settings.lowDataMode, framebufferRequestGate.takeRequest(policy: settings.framebufferRequestPolicy) {
             try await sendFramebufferUpdateRequest()
@@ -99,6 +99,13 @@ private extension VNCConnection {
 	}
 
 	func sendMessage(_ message: VNCSendableMessage) async throws {
-		try await message.send(connection: connection)
+		await outboundAccess.acquire()
+        do {
+            try await message.send(connection: connection)
+            await outboundAccess.release()
+        } catch {
+            await outboundAccess.release()
+            throw error
+        }
 	}
 }

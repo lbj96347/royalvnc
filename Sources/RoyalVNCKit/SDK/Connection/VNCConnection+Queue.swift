@@ -28,30 +28,30 @@ extension VNCConnection {
 	}
 
     func enqueueMouseEvent(nonNormalizedX: UInt16,
-                           nonNormalizedY: UInt16) {
+                           nonNormalizedY: UInt16, coalesceMove: Bool = false) {
         guard settings.inputMode != .none else { return }
 
         let normalizedPosition = normalizedMousePosition(x: nonNormalizedX,
                                                          y: nonNormalizedY)
 
         enqueueMouseEvent(buttons: mouseButtonState,
-                          position: normalizedPosition)
+                          position: normalizedPosition, coalesceMove: coalesceMove)
     }
 
     func enqueueMouseEvent(buttons: VNCProtocol.MousePointerButton,
                            nonNormalizedX: UInt16,
-                           nonNormalizedY: UInt16) {
+                           nonNormalizedY: UInt16, coalesceMove: Bool = false) {
         guard settings.inputMode != .none else { return }
 
         let normalizedPosition = normalizedMousePosition(x: nonNormalizedX,
                                                          y: nonNormalizedY)
 
         enqueueMouseEvent(buttons: buttons,
-                          position: normalizedPosition)
+                          position: normalizedPosition, coalesceMove: coalesceMove)
     }
 
 	func enqueueMouseEvent(buttons: VNCProtocol.MousePointerButton,
-						   position: VNCProtocol.MousePosition) {
+						   position: VNCProtocol.MousePosition, coalesceMove: Bool = false) {
 		guard settings.inputMode != .none else { return }
 
 		framebufferRequestGate.noteInput()
@@ -59,7 +59,8 @@ extension VNCConnection {
         let pointerEvent = VNCProtocol.PointerEvent(buttons: buttons,
 													position: position)
 
-		enqueueClientToServerMessage(pointerEvent)
+		clientToServerMessageQueue.enqueue(pointerEvent, replaceable: coalesceMove)
+        outboundWake.signal()
 	}
 
 	func enqueueClientCutTextMessage(_ text: String) {
@@ -70,6 +71,7 @@ extension VNCConnection {
 
 	func enqueueClientToServerMessage(_ message: VNCSendableMessage) {
 		clientToServerMessageQueue.enqueue(message)
+        outboundWake.signal()
 	}
 
     func normalizedMousePosition(x: UInt16,
