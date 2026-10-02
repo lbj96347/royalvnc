@@ -3,6 +3,7 @@ import FoundationEssentials
 #else
 import Foundation
 #endif
+import Dispatch
 
 // MARK: - Server to Client Messages
 extension VNCConnection {
@@ -68,7 +69,9 @@ private extension VNCConnection {
 
 		logger.logDebug("Receiving Framebuffer Update")
 
-		let framebufferUpdate = try await VNCProtocol.FramebufferUpdate.receive(connection: connection,
+		let startBytes = connection.receivedByteCount
+        let started = DispatchTime.now().uptimeNanoseconds
+        let framebufferUpdate = try await VNCProtocol.FramebufferUpdate.receive(connection: connection,
 																				framebuffer: framebuffer,
 																				encodings: encodings,
 																				logger: logger)
@@ -80,7 +83,20 @@ private extension VNCConnection {
 		try framebuffer.writeSurface()
 		*/
 
-		try await sendFramebufferUpdateRequest()
+        (delegate as? VNCFramebufferStatisticsObserver)?.framebufferUpdateCompleted(.init(
+            receivedBytes: connection.receivedByteCount - startBytes + 1,
+            transferAndDecodeSeconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000,
+            encodingBytes: framebufferUpdate.encodingBytes,
+            pixelRectangleCount: framebufferUpdate.rectangles.count,
+            updatedPixels: framebufferUpdate.rectangles.reduce(0) {
+                $0 + UInt64($1.width) * UInt64($1.height)
+            }
+        ))
+        if settings.lowDataMode {
+            framebufferRequestGate.completedUpdate()
+        } else {
+            try await sendFramebufferUpdateRequest()
+        }
 	}
 
 	func handleSetColourMapEntriesMessage() async throws {
@@ -136,6 +152,8 @@ private extension VNCConnection {
 			logger.logDebug("Disabling Continuous Updates")
 		}
 
-		try await sendFramebufferUpdateRequest()
+        if !settings.lowDataMode {
+            try await sendFramebufferUpdateRequest()
+        }
 	}
 }

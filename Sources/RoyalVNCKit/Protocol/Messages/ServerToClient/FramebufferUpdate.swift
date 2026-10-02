@@ -10,6 +10,7 @@ extension VNCProtocol {
 
 		let messageType: UInt8
 		let rectangles: [VNCProtocol.Rectangle]
+        let encodingBytes: [Int64: UInt64]
 	}
 }
 
@@ -30,6 +31,7 @@ extension VNCProtocol.FramebufferUpdate {
 #endif
 
 		var rectangles = [VNCProtocol.Rectangle]()
+        var encodingBytes: [Int64: UInt64] = [:]
         
         framebuffer.beginBatchUpdates()
         
@@ -40,7 +42,12 @@ extension VNCProtocol.FramebufferUpdate {
 		for idx in 0..<numberOfRectangles {
 			logger.logDebug("Reading rectangle header \(idx + 1)/\(numberOfRectangles)")
 
-			let rectangle = try await VNCProtocol.Rectangle.receive(connection: connection)
+			let startBytes = (connection as? CountingNetworkConnection)?.receivedByteCount ?? 0
+            let rectangle = try await VNCProtocol.Rectangle.receive(connection: connection)
+            defer {
+                let endBytes = (connection as? CountingNetworkConnection)?.receivedByteCount ?? startBytes
+                encodingBytes[Int64(rectangle.encodingType), default: 0] += endBytes - startBytes
+            }
 
 			logger.logDebug("Got rectangle header \(idx + 1)/\(numberOfRectangles): \(rectangle)")
 
@@ -80,6 +87,6 @@ extension VNCProtocol.FramebufferUpdate {
 		}
 
 		return .init(messageType: Self.messageType,
-					 rectangles: rectangles)
+					 rectangles: rectangles, encodingBytes: encodingBytes)
 	}
 }

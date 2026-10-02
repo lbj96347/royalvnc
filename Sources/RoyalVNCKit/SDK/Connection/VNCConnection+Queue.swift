@@ -14,7 +14,9 @@ extension VNCConnection {
 						 isDown: Bool) {
 		guard settings.inputMode != .none else { return }
 
-		let isARD = state.isAppleRemoteDesktop
+		framebufferRequestGate.noteInput()
+
+        let isARD = state.isAppleRemoteDesktop
 		let keyCode = key.rawValue(forAppleRemoteDesktop: isARD)
 
 		let keyEvent = VNCProtocol.KeyEvent(isDown: isDown,
@@ -52,7 +54,9 @@ extension VNCConnection {
 						   position: VNCProtocol.MousePosition) {
 		guard settings.inputMode != .none else { return }
 
-		let pointerEvent = VNCProtocol.PointerEvent(buttons: buttons,
+		framebufferRequestGate.noteInput()
+
+        let pointerEvent = VNCProtocol.PointerEvent(buttons: buttons,
 													position: position)
 
 		enqueueClientToServerMessage(pointerEvent)

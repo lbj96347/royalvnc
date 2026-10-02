@@ -58,6 +58,9 @@ public extension VNCConnection {
 
 		public let jpegQualityLevel: JPEGQualityLevel
 
+        /// Cap requests at 2/s while observing, 10/s for two seconds after input.
+        public let lowDataMode: Bool
+
 #if canImport(ObjectiveC)
 		@objc(frameEncodings)
 #endif
@@ -75,7 +78,8 @@ public extension VNCConnection {
 					isClipboardRedirectionEnabled: Bool,
 					colorDepth: ColorDepth,
 					frameEncodings: [VNCFrameEncodingType],
-                    jpegQualityLevel: JPEGQualityLevel = .level6) {
+                    jpegQualityLevel: JPEGQualityLevel = .level6,
+                    lowDataMode: Bool = false) {
 			self.isDebugLoggingEnabled = isDebugLoggingEnabled
 
 			self.hostname = hostname
@@ -93,6 +97,7 @@ public extension VNCConnection {
 			self.colorDepth = colorDepth
 			self.frameEncodings = frameEncodings
 			self.jpegQualityLevel = jpegQualityLevel
+            self.lowDataMode = lowDataMode
 		}
 
 #if canImport(ObjectiveC)
@@ -108,7 +113,8 @@ public extension VNCConnection {
 								isClipboardRedirectionEnabled: Bool,
 								colorDepth: ColorDepth,
 								frameEncodings: [Int64],
-                            jpegQualityLevel: JPEGQualityLevel = .level6) {
+                            jpegQualityLevel: JPEGQualityLevel = .level6,
+                    lowDataMode: Bool = false) {
 			let frameEncodingsSwift: [VNCFrameEncodingType] = frameEncodings.compactMap({
 				guard let objcFrameEncodingType = _ObjC_VNCFrameEncodingType(rawValue: $0) else { return nil }
 
@@ -125,7 +131,7 @@ public extension VNCConnection {
 					  isClipboardRedirectionEnabled: isClipboardRedirectionEnabled,
 					  colorDepth: colorDepth,
 					  frameEncodings: frameEncodingsSwift,
-                      jpegQualityLevel: jpegQualityLevel)
+                      jpegQualityLevel: jpegQualityLevel, lowDataMode: lowDataMode)
 		}
 	}
 }

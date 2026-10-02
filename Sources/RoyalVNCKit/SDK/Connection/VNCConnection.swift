@@ -61,6 +61,7 @@ public final class VNCConnection: NSObjectOrAnyObject {
 																  minorVersion: 8)
 
 	let state = State()
+    let framebufferRequestGate = VNCFramebufferRequestGate()
 	let systemSound = VNCSystemSound()
 
 	let clipboard: VNCClipboard
@@ -177,7 +178,11 @@ public final class VNCConnection: NSObjectOrAnyObject {
             encs.append(settings.jpegQualityLevel.encodingType)
 		}
 
-		let uniqueEncs = encs.uniqued()
+		if settings.lowDataMode {
+            encs.removeAll { $0 == VNCPseudoEncodingType.continuousUpdates.rawValue }
+        }
+
+        let uniqueEncs = encs.uniqued()
 
 		// Sanity Check
         // If the sanity check fails here, it could be a programming error, but it could also be an error by the SDK user if he/she specified encodings with invalid values in settings. So we bubble the error up but don't crash.
@@ -285,6 +290,7 @@ extension VNCConnection {
 		guard !state.disconnectRequested else { return }
 
 		state.disconnectRequested = true
+        framebufferRequestGate.stop()
 		updateConnectionState(.disconnecting)
 
 		connection.setStatusUpdateHandler(nil)
@@ -361,6 +367,7 @@ private extension VNCConnection {
 		Task {
 			do {
 				try await handshake()
+                framebufferRequestGate.sentInitialRequest()
 				try await sendFramebufferUpdateRequest()
 			} catch {
 				handleBreakingError(error)

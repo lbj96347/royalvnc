@@ -22,7 +22,7 @@ extension VNCConnection {
 	}
 
 	func sendFramebufferUpdateRequest() async throws {
-		guard let framebuffer,
+		guard !state.disconnectRequested, connection.isReady, let framebuffer,
               !state.areContinuousUpdatesEnabled else {
             return
         }
@@ -42,7 +42,7 @@ extension VNCConnection {
 	}
 
 	func sendEnableContinuousUpdates() async throws {
-		guard let framebuffer,
+		guard !settings.lowDataMode, let framebuffer,
               state.areContinuousUpdatesSupported,
               !state.areContinuousUpdatesEnabled else {
             return
@@ -60,15 +60,17 @@ extension VNCConnection {
 
 private extension VNCConnection {
 	func send() async throws {
-		guard !state.disconnectRequested,
-              connection.isReady,
-			  let message = clientToServerMessageQueue.dequeue() else {
-			try await Task.sleep(seconds: 0.01)
+		guard !state.disconnectRequested, connection.isReady else { return }
 
-			return
-		}
-
-		try await sendMessage(message)
+        // Input is always sent immediately, independently of the picture request cadence.
+        if let message = clientToServerMessageQueue.dequeue() {
+            try await sendMessage(message)
+        } else {
+            try await Task.sleep(seconds: 0.01)
+        }
+        if !state.disconnectRequested, settings.lowDataMode, framebufferRequestGate.takeRequest() {
+            try await sendFramebufferUpdateRequest()
+        }
 	}
 
 	func sendFramebufferUpdateRequest(incremental: Bool,
@@ -80,6 +82,7 @@ private extension VNCConnection {
 																			height: region.size.height)
 
         (delegate as? VNCUpdateTimingObserver)?.framebufferUpdateRequested()
+        (delegate as? VNCFramebufferStatisticsObserver)?.framebufferUpdateRequested(incremental: incremental)
 		try await sendMessage(framebufferUpdateRequest)
 	}
 
