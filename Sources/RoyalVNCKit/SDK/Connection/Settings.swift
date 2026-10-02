@@ -56,6 +56,8 @@ public extension VNCConnection {
 
 		public let frameEncodings: [VNCFrameEncodingType]
 
+		public let jpegQualityLevel: JPEGQualityLevel
+
 #if canImport(ObjectiveC)
 		@objc(frameEncodings)
 #endif
@@ -72,7 +74,8 @@ public extension VNCConnection {
 					inputMode: InputMode,
 					isClipboardRedirectionEnabled: Bool,
 					colorDepth: ColorDepth,
-					frameEncodings: [VNCFrameEncodingType]) {
+					frameEncodings: [VNCFrameEncodingType],
+                    jpegQualityLevel: JPEGQualityLevel = .level6) {
 			self.isDebugLoggingEnabled = isDebugLoggingEnabled
 
 			self.hostname = hostname
@@ -89,6 +92,7 @@ public extension VNCConnection {
 
 			self.colorDepth = colorDepth
 			self.frameEncodings = frameEncodings
+			self.jpegQualityLevel = jpegQualityLevel
 		}
 
 #if canImport(ObjectiveC)
@@ -103,7 +107,8 @@ public extension VNCConnection {
 								inputMode: InputMode,
 								isClipboardRedirectionEnabled: Bool,
 								colorDepth: ColorDepth,
-								frameEncodings: [Int64]) {
+								frameEncodings: [Int64],
+                            jpegQualityLevel: JPEGQualityLevel = .level6) {
 			let frameEncodingsSwift: [VNCFrameEncodingType] = frameEncodings.compactMap({
 				guard let objcFrameEncodingType = _ObjC_VNCFrameEncodingType(rawValue: $0) else { return nil }
 
@@ -119,12 +124,24 @@ public extension VNCConnection {
 					  inputMode: inputMode,
 					  isClipboardRedirectionEnabled: isClipboardRedirectionEnabled,
 					  colorDepth: colorDepth,
-					  frameEncodings: frameEncodingsSwift)
+					  frameEncodings: frameEncodingsSwift,
+                      jpegQualityLevel: jpegQualityLevel)
 		}
 	}
 }
 
 public extension VNCConnection.Settings {
+#if canImport(ObjectiveC)
+    @objc(VNCJPEGQualityLevel)
+#endif
+    enum JPEGQualityLevel: Int {
+        case level0, level1, level2, level3, level4, level5, level6, level7, level8, level9
+
+        var encodingType: VNCEncodingType {
+            VNCEncodingType(rawValue: Int64(-32 + rawValue))!
+        }
+    }
+
 #if canImport(ObjectiveC)
 	@objc(VNCInputMode)
 #endif

@@ -94,7 +94,7 @@ public final class VNCConnection: NSObjectOrAnyObject {
 		let compressionLevelEncodingType = VNCPseudoEncodingType.compressionLevel6.rawValue
 		let compressionLevelEncoding = VNCProtocol.CompressionLevelEncoding(encodingType: compressionLevelEncodingType)
 
-		let jpegQualityLevelEncodingType = VNCPseudoEncodingType.jpegQualityLevel6.rawValue
+		let jpegQualityLevelEncodingType = settings.jpegQualityLevel.encodingType
 		let jpegQualityLevelEncoding = VNCProtocol.JPEGQualityLevelEncoding(encodingType: jpegQualityLevelEncodingType)
 
 		let encs: Encodings = [
@@ -177,8 +177,7 @@ public final class VNCConnection: NSObjectOrAnyObject {
 		])
 
 		if usesTightEncoding {
-            // TODO: Make configurable
-			encs.append(VNCPseudoEncodingType.jpegQualityLevel6.rawValue)
+            encs.append(settings.jpegQualityLevel.encodingType)
 		}
 
 		let uniqueEncs = encs.uniqued()
