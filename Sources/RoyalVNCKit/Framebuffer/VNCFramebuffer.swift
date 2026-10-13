@@ -25,6 +25,13 @@ import AppKit
 @objc(VNCFramebuffer)
 #endif
 public final class VNCFramebuffer: NSObjectOrAnyObject {
+
+    /// Access only under the connection's completed-framebuffer gate.
+    public private(set) var appleDisplayLayout: VNCAppleDisplayLayout?
+
+    func updateAppleDisplayLayout(_ layout: VNCAppleDisplayLayout?) {
+        appleDisplayLayout = layout
+    }
 	// MARK: - Public Properties
     /// The framebuffer's size in pixels.
 	public let size: VNCSize

@@ -86,7 +86,8 @@ private extension VNCConnection {
         let framebufferUpdate = try await VNCProtocol.FramebufferUpdate.receive(connection: connection,
 																				framebuffer: framebuffer,
 																				encodings: encodings,
-																				logger: logger)
+																				logger: logger,
+                                                                                currentFramebuffer: { self.framebuffer })
 
 		logger.logDebug("Received Framebuffer Update: \(framebufferUpdate)")
 

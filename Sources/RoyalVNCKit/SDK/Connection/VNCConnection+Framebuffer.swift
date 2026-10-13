@@ -51,6 +51,12 @@ extension VNCConnection {
 			return
 		}
 
+        // Metadata can precede DesktopSize in the same update. Preserve it only when
+        // its canvas matches the new surface; old geometry must never crop a new size.
+        if let layout = self.framebuffer?.appleDisplayLayout,
+           layout.width == Int(size.width), layout.height == Int(size.height) {
+            newFramebuffer.updateAppleDisplayLayout(layout)
+        }
         self.framebuffer?.delegate = nil
 
 		newFramebuffer.delegate = self

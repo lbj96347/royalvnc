@@ -110,6 +110,8 @@ public final class VNCConnection: NSObjectOrAnyObject {
 			VNCFrameEncodingType.raw.rawValue: rawEncoding,
 
 			// Pseudo Encodings
+
+            1105: VNCProtocol.AppleDisplayLayoutEncoding(),
 			VNCPseudoEncodingType.lastRect.rawValue: VNCProtocol.LastRectEncoding(),
 			VNCPseudoEncodingType.continuousUpdates.rawValue: VNCProtocol.ContinuousUpdatesEncoding(),
 			VNCPseudoEncodingType.extendedDesktopSize.rawValue: VNCProtocol.ExtendedDesktopSizeEncoding(),
@@ -163,6 +165,10 @@ public final class VNCConnection: NSObjectOrAnyObject {
 		encs.append(VNCFrameEncodingType.raw.rawValue)
 
 		// Pseudo Encodings
+
+        if settings.isAppleDisplayLayoutEnabled && state.isAppleRemoteDesktop {
+            encs.append(1105)
+        }
 		encs.append(contentsOf: [
 			VNCPseudoEncodingType.lastRect.rawValue,
 			VNCPseudoEncodingType.continuousUpdates.rawValue,

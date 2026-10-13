@@ -18,7 +18,8 @@ extension VNCProtocol.FramebufferUpdate {
 	static func receive(connection: NetworkConnectionReading,
 						framebuffer: VNCFramebuffer,
 						encodings: Encodings,
-						logger: VNCLogger) async throws -> Self {
+						logger: VNCLogger,
+                        currentFramebuffer: (() -> VNCFramebuffer?)? = nil) async throws -> Self {
 		try await connection.readPadding()
 		let numberOfRectangles = try await connection.readUInt16()
 
@@ -33,10 +34,11 @@ extension VNCProtocol.FramebufferUpdate {
 		var rectangles = [VNCProtocol.Rectangle]()
         var encodingBytes: [Int64: UInt64] = [:]
         
-        framebuffer.beginBatchUpdates()
+        var activeFramebuffer = framebuffer
+        activeFramebuffer.beginBatchUpdates()
         
         defer {
-            framebuffer.endBatchUpdates()
+            activeFramebuffer.endBatchUpdates()
         }
 
 		for idx in 0..<numberOfRectangles {
@@ -61,7 +63,7 @@ extension VNCProtocol.FramebufferUpdate {
 				logger.logDebug("Decoding frame rectangle \(idx + 1)/\(numberOfRectangles)")
 
 				try await frameEncoding.decodeRectangle(rectangle,
-														framebuffer: framebuffer,
+														framebuffer: activeFramebuffer,
 														connection: connection,
 														logger: logger)
 
@@ -75,9 +77,18 @@ extension VNCProtocol.FramebufferUpdate {
 					logger.logDebug("Decoding pseudo rectangle \(idx + 1)/\(numberOfRectangles)")
 
 					try await receivablePseudoEncoding.receive(rectangle,
-															   framebuffer: framebuffer,
+														   framebuffer: activeFramebuffer,
 															   connection: connection,
-															   logger: logger)
+														   logger: logger)
+
+                    // A resize replaces the surface. Remaining rectangles in this same
+                    // update must target the new surface, including its layout metadata.
+                    if let replacement = currentFramebuffer?(), replacement !== activeFramebuffer {
+                        activeFramebuffer.endBatchUpdates()
+                        activeFramebuffer = replacement
+                        activeFramebuffer.beginBatchUpdates()
+                        rectangles.removeAll()
+                    }
 
 					logger.logDebug("Finished decoding pseudo rectangle \(idx + 1)/\(numberOfRectangles)")
 				} else {
