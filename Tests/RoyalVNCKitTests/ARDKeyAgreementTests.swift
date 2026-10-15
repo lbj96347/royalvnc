@@ -21,6 +21,8 @@ final class ARDKeyAgreementTests: XCTestCase {
         XCTAssertEqual(agreement.secretKey.count, 4)
         XCTAssertEqual(agreement.publicKey, agreement.secretKey)
         XCTAssertEqual(agreement.publicKey.first, 0)
+        XCTAssertNil(VNCProtocol.ARDAuthentication.DiffieHellmanKeyAgreement(
+            prime: Data([0,1,0,1]), generator: Data([0,0]), peerKey: Data([0,0,0,2]), keyLength: 4))
     }
 
     func test4096BitPublicAndSharedKeysMatchIndependentPythonVectorsWithinStartupBudget() throws {

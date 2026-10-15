@@ -14,7 +14,9 @@ extension VNCProtocol.ARDAuthentication {
 			  generator: Data,
 			  peerKey: Data,
 			  keyLength: Int) {
-			guard keyLength > 0 else {
+            guard keyLength > 0, prime.count == keyLength, peerKey.count == keyLength,
+                  generator.count == 2,
+                  (UInt16(generator[generator.startIndex]) << 8 | UInt16(generator[generator.startIndex + 1])) >= 2 else {
 				return nil
 			}
 
