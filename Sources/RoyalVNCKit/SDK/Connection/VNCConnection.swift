@@ -103,7 +103,8 @@ public final class VNCConnection: NSObjectOrAnyObject {
 			VNCFrameEncodingType.copyRect.rawValue: VNCProtocol.CopyRectEncoding(),
             VNCFrameEncodingType.tight.rawValue: VNCProtocol.TightEncoding(),
             VNCFrameEncodingType.zlib.rawValue: VNCProtocol.ZlibEncoding(zStream: sharedZStream),
-			VNCFrameEncodingType.zrle.rawValue: VNCProtocol.ZRLEEncoding(zStream: sharedZRLEZStream),
+			VNCFrameEncodingType.appleMVS.rawValue: VNCProtocol.AppleMVSEncoding(),
+            VNCFrameEncodingType.zrle.rawValue: VNCProtocol.ZRLEEncoding(zStream: sharedZRLEZStream),
 			VNCFrameEncodingType.hextile.rawValue: hextileEncoding,
 			VNCFrameEncodingType.coRRE.rawValue: VNCProtocol.RREEncoding(),
 			VNCFrameEncodingType.rre.rawValue: VNCProtocol.RREEncoding(),
@@ -377,6 +378,9 @@ private extension VNCConnection {
 		Task {
 			do {
 				try await handshake()
+                if state.isAppleRemoteDesktop, let scale = settings.initialAppleServerScale {
+                    try await VNCProtocol.AppleServerScale(scale: scale).send(connection: connection)
+                }
                 framebufferRequestGate.sentInitialRequest()
 				try await sendFramebufferUpdateRequest()
 			} catch {

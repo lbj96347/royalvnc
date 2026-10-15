@@ -19,7 +19,9 @@ extension VNCProtocol.FramebufferUpdate {
 						framebuffer: VNCFramebuffer,
 						encodings: Encodings,
 						logger: VNCLogger,
-                        currentFramebuffer: (() -> VNCFramebuffer?)? = nil) async throws -> Self {
+                        currentFramebuffer: (() -> VNCFramebuffer?)? = nil,
+                        didDecodePixelRectangle: ((VNCFramebuffer, VNCRegion) -> Void)? = nil,
+                        willDecodePixelRectangle: (() -> Void)? = nil) async throws -> Self {
 		try await connection.readPadding()
 		let numberOfRectangles = try await connection.readUInt16()
 
@@ -62,6 +64,7 @@ extension VNCProtocol.FramebufferUpdate {
 			if let frameEncoding = encoding as? VNCFrameEncoding {
 				logger.logDebug("Decoding frame rectangle \(idx + 1)/\(numberOfRectangles)")
 
+                willDecodePixelRectangle?()
 				try await frameEncoding.decodeRectangle(rectangle,
 														framebuffer: activeFramebuffer,
 														connection: connection,
@@ -69,7 +72,15 @@ extension VNCProtocol.FramebufferUpdate {
 
 				logger.logDebug("Finished decoding frame rectangle \(idx + 1)/\(numberOfRectangles)")
 
-				rectangles.append(rectangle)
+                let changed = (frameEncoding as? VNCProtocol.AppleMVSEncoding)?.changedPixels ?? true
+                if changed, rectangle.width > 0, rectangle.height > 0,
+                   Int(rectangle.xPosition) + Int(rectangle.width) <= Int(activeFramebuffer.size.width),
+                   Int(rectangle.yPosition) + Int(rectangle.height) <= Int(activeFramebuffer.size.height) {
+                    didDecodePixelRectangle?(activeFramebuffer,
+                        VNCRegion(location: .init(x: rectangle.xPosition, y: rectangle.yPosition),
+                                  size: .init(width: rectangle.width, height: rectangle.height)))
+                }
+                if changed { rectangles.append(rectangle) }
 			} else if let pseudoEncoding = encoding as? VNCPseudoEncoding {
 				if pseudoEncoding as? VNCProtocol.LastRectEncoding != nil {
 					break

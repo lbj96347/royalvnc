@@ -71,6 +71,8 @@ let package = Package(
                 .product(name: "stb_image", package: "Cstb", condition: .when(platforms: [ .linux, .windows, .android ]))
             ],
 
+            resources: [.copy("Resources/AppleMVS")],
+
             swiftSettings: [
                 .swiftLanguageMode(swiftLanguageMode),
                 

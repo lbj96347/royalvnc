@@ -54,3 +54,16 @@ public extension VNCConnection {
         await framebufferAccess.release()
     }
 }
+
+/// Optional pixel-rectangle boundary, serialized with framebuffer writes. The observer
+/// may copy pixels synchronously; never retain the mutable surface or re-enter the gate.
+/// This callback does not complete an update or generate another update request.
+public protocol VNCFramebufferRectangleObserver: AnyObject {
+    func connectionWillDecodePixelRectangle(_ connection: VNCConnection)
+    func connection(_ connection: VNCConnection, didDecodePixelRectangle framebuffer: VNCFramebuffer,
+                    region: VNCRegion)
+}
+
+public extension VNCFramebufferRectangleObserver {
+    func connectionWillDecodePixelRectangle(_ connection: VNCConnection) {}
+}

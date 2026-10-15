@@ -66,6 +66,8 @@ public extension VNCConnection {
 
         /// Opt in only for viewers that consume Apple's physical-display metadata.
         public let isAppleDisplayLayoutEnabled: Bool
+        /// Experimental: sent after ARD handshake, before the first full request.
+        public let initialAppleServerScale: Double?
 
 #if canImport(ObjectiveC)
 		@objc(frameEncodings)
@@ -87,7 +89,8 @@ public extension VNCConnection {
                     jpegQualityLevel: JPEGQualityLevel = .level6,
                     lowDataMode: Bool = false,
                     framebufferRequestPolicy: VNCFramebufferRequestPolicy? = nil,
-                    isAppleDisplayLayoutEnabled: Bool = false) {
+                    isAppleDisplayLayoutEnabled: Bool = false,
+                    initialAppleServerScale: Double? = nil) {
 			self.isDebugLoggingEnabled = isDebugLoggingEnabled
 
 			self.hostname = hostname
@@ -107,6 +110,7 @@ public extension VNCConnection {
 			self.jpegQualityLevel = jpegQualityLevel
             self.framebufferRequestPolicy = framebufferRequestPolicy ?? (lowDataMode ? .lowData : .responsive)
             self.isAppleDisplayLayoutEnabled = isAppleDisplayLayoutEnabled
+            self.initialAppleServerScale = initialAppleServerScale == 0.5 ? 0.5 : nil
 		}
 
 #if canImport(ObjectiveC)

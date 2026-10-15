@@ -87,7 +87,13 @@ private extension VNCConnection {
 																				framebuffer: framebuffer,
 																				encodings: encodings,
 																				logger: logger,
-                                                                                currentFramebuffer: { self.framebuffer })
+                                                                                currentFramebuffer: { self.framebuffer },
+                                                                                didDecodePixelRectangle: { framebuffer, region in
+            (self.delegate as? VNCFramebufferRectangleObserver)?.connection(self,
+                didDecodePixelRectangle: framebuffer, region: region)
+        }, willDecodePixelRectangle: {
+            (self.delegate as? VNCFramebufferRectangleObserver)?.connectionWillDecodePixelRectangle(self)
+        })
 
 		logger.logDebug("Received Framebuffer Update: \(framebufferUpdate)")
 
