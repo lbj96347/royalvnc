@@ -68,6 +68,8 @@ public extension VNCConnection {
         public let isAppleDisplayLayoutEnabled: Bool
         /// Experimental: sent after ARD handshake, before the first full request.
         public let initialAppleServerScale: Double?
+        /// Experimental physical-desktop ARD, independent of HP media.
+        public let isAppleStandardEnabled: Bool
 
 #if canImport(ObjectiveC)
 		@objc(frameEncodings)
@@ -90,7 +92,8 @@ public extension VNCConnection {
                     lowDataMode: Bool = false,
                     framebufferRequestPolicy: VNCFramebufferRequestPolicy? = nil,
                     isAppleDisplayLayoutEnabled: Bool = false,
-                    initialAppleServerScale: Double? = nil) {
+                    initialAppleServerScale: Double? = nil,
+                    isAppleStandardEnabled: Bool = false) {
 			self.isDebugLoggingEnabled = isDebugLoggingEnabled
 
 			self.hostname = hostname
@@ -111,6 +114,7 @@ public extension VNCConnection {
             self.framebufferRequestPolicy = framebufferRequestPolicy ?? (lowDataMode ? .lowData : .responsive)
             self.isAppleDisplayLayoutEnabled = isAppleDisplayLayoutEnabled
             self.initialAppleServerScale = initialAppleServerScale == 0.5 ? 0.5 : nil
+            self.isAppleStandardEnabled = isAppleStandardEnabled
 		}
 
 #if canImport(ObjectiveC)

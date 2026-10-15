@@ -21,7 +21,12 @@ extension VNCConnection {
 		}
 	}
 
-	func sendFramebufferUpdateRequest() async throws {
+    func sendFramebufferUpdateRequest() async throws {
+        if settings.isAppleStandardEnabled {
+            guard !state.incrementalUpdatesEnabled else { return }
+            try await armAppleStandard(full: true)
+            return
+        }
 		guard !state.disconnectRequested, connection.isReady, let framebuffer,
               !state.areContinuousUpdatesEnabled else {
             return
@@ -42,7 +47,7 @@ extension VNCConnection {
 	}
 
 	func sendEnableContinuousUpdates() async throws {
-		guard !settings.lowDataMode, let framebuffer,
+		guard !settings.isAppleStandardEnabled, !settings.lowDataMode, let framebuffer,
               state.areContinuousUpdatesSupported,
               !state.areContinuousUpdatesEnabled else {
             return
@@ -66,10 +71,10 @@ private extension VNCConnection {
         if let message = clientToServerMessageQueue.dequeue() {
             try await sendMessage(message)
         } else {
-            let delay = framebufferRequestGate.nextRequestDelay(policy: settings.framebufferRequestPolicy)
+            let delay = settings.isAppleStandardEnabled ? 60 : framebufferRequestGate.nextRequestDelay(policy: settings.framebufferRequestPolicy)
             await outboundWake.wait(seconds: max(0.000_001, delay))
         }
-        if !state.disconnectRequested, settings.lowDataMode, framebufferRequestGate.takeRequest(policy: settings.framebufferRequestPolicy) {
+        if !state.disconnectRequested, !settings.isAppleStandardEnabled, settings.lowDataMode, framebufferRequestGate.takeRequest(policy: settings.framebufferRequestPolicy) {
             try await sendFramebufferUpdateRequest()
         }
 	}

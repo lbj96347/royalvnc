@@ -12,6 +12,17 @@ final class ARDKeyAgreementTests: XCTestCase {
             UInt8(String(values[$0...$0 + 1]), radix: 16)!
         })
     }
+    func testLeadingZeroDHIntegersRetainTheAdvertisedWireWidth() throws {
+        // Every public/shared value is below this small prime and necessarily needs padding.
+        let agreement = try XCTUnwrap(VNCProtocol.ARDAuthentication.DiffieHellmanKeyAgreement(
+            prime: Data([0,1,0,1]), generator: Data([0,2]), peerKey: Data([0,0,0,2]), keyLength: 4))
+        XCTAssertEqual(agreement.privateKey.count, 4)
+        XCTAssertEqual(agreement.publicKey.count, 4)
+        XCTAssertEqual(agreement.secretKey.count, 4)
+        XCTAssertEqual(agreement.publicKey, agreement.secretKey)
+        XCTAssertEqual(agreement.publicKey.first, 0)
+    }
+
     func test4096BitPublicAndSharedKeysMatchIndependentPythonVectorsWithinStartupBudget() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "ard4096", withExtension: "json", subdirectory: "Fixtures"))
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))

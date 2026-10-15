@@ -55,7 +55,7 @@ extension VNCProtocol.ARDAuthentication {
 	}
 
 	func send(connection: NetworkConnectionWriting,
-			  credential: VNCUsernamePasswordCredential) async throws {
+			  credential: VNCUsernamePasswordCredential) async throws -> Data {
         try Task.checkCancellation()
 		let authentication = try authenticate(credential: credential)
         try Task.checkCancellation()
@@ -66,6 +66,7 @@ extension VNCProtocol.ARDAuthentication {
 		try await Self.sendResponse(connection: connection,
 									cipherText: cipherText,
 									publicKey: publicKey)
+        return authentication.sessionKey
 	}
 }
 

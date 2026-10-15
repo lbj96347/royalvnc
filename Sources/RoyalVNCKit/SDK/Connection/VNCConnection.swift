@@ -61,6 +61,8 @@ public final class VNCConnection: NSObjectOrAnyObject {
 																  minorVersion: 8)
 
 	let state = State()
+    let appleStandard = AppleStandardSession()
+    public var isAppleStandardEncrypted: Bool { connection.isAppleEncrypted }
     let framebufferRequestGate = VNCFramebufferRequestGate()
     let framebufferAccess = VNCFramebufferAccess()
     let outboundAccess = VNCFramebufferAccess()
@@ -111,7 +113,7 @@ public final class VNCConnection: NSObjectOrAnyObject {
 		let jpegQualityLevelEncodingType = settings.jpegQualityLevel.encodingType
 		let jpegQualityLevelEncoding = VNCProtocol.JPEGQualityLevelEncoding(encodingType: jpegQualityLevelEncodingType)
 
-		let encs: Encodings = [
+        var encs: Encodings = [
 			// Frame Encodings
 			VNCFrameEncodingType.copyRect.rawValue: VNCProtocol.CopyRectEncoding(),
             VNCFrameEncodingType.tight.rawValue: VNCProtocol.TightEncoding(),
@@ -136,8 +138,15 @@ public final class VNCConnection: NSObjectOrAnyObject {
 			jpegQualityLevelEncodingType: jpegQualityLevelEncoding
 		]
 
-		// Sanity Check
-		do {
+        if settings.isAppleStandardEnabled {
+            encs[1002] = VNCProtocol.AppleThousandsEncoding()
+            for id: VNCEncodingType in [1103,1104,1105] {
+                encs[id] = VNCProtocol.AppleStandardMetadataEncoding(encodingType: id, session: appleStandard,
+                    layout: { [weak self] data in self?.applyAppleLayout(data) })
+            }
+        }
+        // Sanity Check
+        do {
 			let encodingTypes = encs.values.map({ $0.encodingType })
 
 			try encodingTypes.validate()
@@ -149,7 +158,10 @@ public final class VNCConnection: NSObjectOrAnyObject {
 		return encs
 	}()
 
-	func orderedEncodingTypes() throws -> [VNCEncodingType] {
+    func orderedEncodingTypes() throws -> [VNCEncodingType] {
+        if settings.isAppleStandardEnabled {
+            return (settings.frameEncodings.map { $0.rawValue } + [6,16,0,1,-223,-224,-239,1103,1104,1105]).uniqued()
+        }
 		// Frame Encodings (Required)
 		var encs: [VNCEncodingType] = [
 			VNCFrameEncodingType.copyRect.rawValue
@@ -393,6 +405,9 @@ private extension VNCConnection {
 				try await handshake()
                 if state.isAppleRemoteDesktop, let scale = settings.initialAppleServerScale {
                     try await VNCProtocol.AppleServerScale(scale: scale).send(connection: connection)
+                }
+                if settings.isAppleStandardEnabled {
+                    try await finishAppleStandardEncryption()
                 }
                 framebufferRequestGate.sentInitialRequest()
 				try await sendFramebufferUpdateRequest()

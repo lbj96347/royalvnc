@@ -23,7 +23,7 @@ extension VNCConnection {
 	}
 }
 
-private extension VNCConnection {
+extension VNCConnection {
 	func receive() async throws {
 		guard !state.disconnectRequested else {
 			// Just ignore, since disconnect has already been requested
@@ -36,7 +36,8 @@ private extension VNCConnection {
 
 		let serverToClientMessage = try await VNCProtocol.ServerToClientMessage.receive(connection: connection)
 
-		try await didReceive(messageType: serverToClientMessage.messageType)
+        if settings.isAppleStandardEnabled, try await receiveAppleControl(serverToClientMessage.messageType) { return }
+        try await didReceive(messageType: serverToClientMessage.messageType)
 	}
 
 	func didReceive(messageType: UInt8) async throws {
@@ -118,7 +119,9 @@ private extension VNCConnection {
             (delegate as? VNCFramebufferCompletionObserver)?.connection(self,
                 didCompleteFramebufferUpdate: completedFramebuffer, statistics: statistics)
         }
-        if settings.lowDataMode {
+        if settings.isAppleStandardEnabled {
+            try await completeAppleStandardUpdate()
+        } else if settings.lowDataMode {
             framebufferRequestGate.completedUpdate(hasPixelChanges: statistics.updatedPixels > 0)
             outboundWake.signal()
         } else {

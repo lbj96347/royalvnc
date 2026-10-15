@@ -37,7 +37,10 @@ private extension VNCConnection {
 			let maxSupportedProtocolVersion = maxSupportedProtocolVersion
 
 			// The max. protocol version we currently support is 3.8, so check if the server is within those limits, otherwise downgrade to 3.8
-			if serverProtocolVersion.majorVersion <= maxSupportedProtocolVersion.majorVersion,
+            if settings.isAppleStandardEnabled {
+                guard serverProtocolVersion.isAppleRemoteDesktop else { throw AppleStandardError.unsupportedServer }
+                clientProtocolVersion = serverProtocolVersion
+            } else if serverProtocolVersion.majorVersion <= maxSupportedProtocolVersion.majorVersion,
 			   serverProtocolVersion.minorVersion <= maxSupportedProtocolVersion.minorVersion {
 				// Server reported a protocol version equal or lower to 3.8, use it
 				clientProtocolVersion = serverProtocolVersion
@@ -105,7 +108,10 @@ private extension VNCConnection {
 
 		let supportedSecurityTypes = supportedTypes.securityTypes
 
-		if supportedSecurityTypes.contains(.none) {
+        if settings.isAppleStandardEnabled {
+            guard supportedSecurityTypes.contains(.diffieHellman) else { throw AppleStandardError.unsupportedServer }
+            chosenSecurityType = .diffieHellman
+        } else if supportedSecurityTypes.contains(.none) {
 			chosenSecurityType = .none
 		} else if supportedSecurityTypes.contains(.diffieHellman) {
 			chosenSecurityType = .diffieHellman
@@ -181,8 +187,7 @@ private extension VNCConnection {
 
 		let credential = try await askDelegateForPasswordCredential(authenticationType: auth.authenticationType)
 
-		try await auth.send(connection: connection,
-							credential: credential)
+        try await auth.send(connection: connection, credential: credential)
 	}
 
 	func performARDAuthentication() async throws {
@@ -194,8 +199,8 @@ private extension VNCConnection {
 
         setHandshakePhase(.keyAgreement)
         logger.logInfo("ARD key agreement started keyBytes=\(auth.keySize)")
-		try await auth.send(connection: connection,
-							credential: credential)
+		let key = try await auth.send(connection: connection, credential: credential)
+        if settings.isAppleStandardEnabled { appleStandard.authKey = key }
 	}
 
 	func performUltraVNCMSLogonIIAuthentication() async throws {
@@ -228,7 +233,7 @@ private extension VNCConnection {
 			let reason: String?
 
 			// Only servers 3.8+ send a reason
-			if let protocolVersion = state.agreedProtocolVersion,
+			if !settings.isAppleStandardEnabled, let protocolVersion = state.agreedProtocolVersion,
 			   protocolVersion.is3Point8OrHigher {
 				reason = try? await VNCProtocol.SecurityResult.receiveFailureReason(connection: connection)
 			} else {
@@ -244,8 +249,8 @@ private extension VNCConnection {
 		let isShared = settings.isShared
 
 		do {
-			try await VNCProtocol.ClientInit.send(connection: connection,
-												  isShared: isShared)
+            if settings.isAppleStandardEnabled { try await connection.write(value: 0xc1) }
+            else { try await VNCProtocol.ClientInit.send(connection: connection, isShared: isShared) }
 		} catch {
 			throw VNCError.ConnectionError.closedDuringHandshake(handshakingPhase: "Send Client Init",
 																 underlyingError: error)
@@ -261,7 +266,7 @@ private extension VNCConnection {
 
 		do {
 			serverInit = try await VNCProtocol.ServerInit.receive(connection: connection,
-																  isTightSecurityEnabled: state.isTightSecurityEnabled)
+																  isTightSecurityEnabled: state.isTightSecurityEnabled, appleStandard: settings.isAppleStandardEnabled)
 		} catch {
 			throw VNCError.ConnectionError.closedDuringHandshake(handshakingPhase: "Receive Server Init",
 																 underlyingError: error)
@@ -269,7 +274,16 @@ private extension VNCConnection {
 
 		logger.logDebug("Received Server Init \(serverInit)")
 
-		state.framebufferWidth = serverInit.framebufferWidth
+        if settings.isAppleStandardEnabled {
+            guard serverInit.framebufferWidth <= 16384, serverInit.framebufferHeight <= 16384,
+                  Int(serverInit.framebufferWidth) * Int(serverInit.framebufferHeight) <= 33_554_432 else {
+                throw AppleStandardError.invalidMessage
+            }
+            if serverInit.appleFlags & 4 != 0 { try await selectApplePhysicalSession() }
+            try await connection.write(data: AppleStandardWire.viewerInfo + AppleStandardWire.controlMode +
+                AppleStandardWire.display(nil) + AppleStandardWire.disableClipboard)
+        }
+        state.framebufferWidth = serverInit.framebufferWidth
 		state.framebufferHeight = serverInit.framebufferHeight
 		state.desktopName = serverInit.name
 
@@ -302,8 +316,8 @@ private extension VNCConnection {
 																 underlyingError: error)
 		}
 
-		let framebufferSize = VNCSize(width: serverInit.framebufferWidth,
-									  height: serverInit.framebufferHeight)
+		let framebufferSize = VNCSize(width: settings.isAppleStandardEnabled ? max(1, serverInit.framebufferWidth) : serverInit.framebufferWidth,
+                                      height: settings.isAppleStandardEnabled ? max(1, serverInit.framebufferHeight) : serverInit.framebufferHeight)
 
         let newFramebuffer = try VNCFramebuffer(logger: logger,
                                                 size: framebufferSize,
@@ -317,7 +331,10 @@ private extension VNCConnection {
 
 		clientToServerMessageQueue.clear()
 
-		notifyDelegateAboutFramebufferCreation(newFramebuffer)
+        notifyDelegateAboutFramebufferCreation(newFramebuffer)
+        if settings.isAppleStandardEnabled {
+            try await connection.write(data: AppleStandardWire.encryptionRequest)
+        }
 	}
 
 	func sendSetPixelFormat(_ pixelFormat: VNCProtocol.PixelFormat) async throws {

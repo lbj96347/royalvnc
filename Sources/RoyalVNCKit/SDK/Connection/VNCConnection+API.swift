@@ -82,6 +82,14 @@ public extension VNCConnection {
     func mouseWheel(_ wheel: VNCMouseWheel,
                     x: UInt16, y: UInt16,
                     steps: UInt32) {
+        if settings.isAppleStandardEnabled {
+            guard settings.inputMode != .none, steps > 0 else { return }
+            let position = normalizedMousePosition(x: x, y: y)
+            let amount = Int16(min(steps, 1024)) * (wheel == .up || wheel == .left ? -1 : 1)
+            enqueueClientToServerMessage(AppleStandardMessage(data: AppleStandardWire.scroll(
+                horizontal: wheel == .left || wheel == .right, delta: amount, x: position.x, y: position.y)))
+            return
+        }
         for _ in 0..<steps {
             updateMouseButtonState(wheel: wheel,
                                    isDown: true)

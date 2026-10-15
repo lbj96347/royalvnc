@@ -12,11 +12,13 @@ extension VNCProtocol.ARDAuthentication {
     struct Authentication {
         let cipherText: Data
         let publicKey: Data
+        let sessionKey: Data
 
         private init(cipherText: Data,
-                     publicKey: Data) {
+                     publicKey: Data, sessionKey: Data) {
             self.cipherText = cipherText
             self.publicKey = publicKey
+            self.sessionKey = sessionKey
         }
 
         init?(agreement: DiffieHellmanKeyAgreement,
@@ -112,7 +114,7 @@ extension VNCProtocol.ARDAuthentication {
 			}
 
             self.init(cipherText: cipherText,
-                      publicKey: agreement.publicKey)
+                      publicKey: agreement.publicKey, sessionKey: secretHash)
         }
     }
 }

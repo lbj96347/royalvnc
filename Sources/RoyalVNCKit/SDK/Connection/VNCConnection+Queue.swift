@@ -56,7 +56,8 @@ extension VNCConnection {
 
 		framebufferRequestGate.noteInput()
 
-        let pointerEvent = VNCProtocol.PointerEvent(buttons: buttons,
+        let mapped = settings.isAppleStandardEnabled ? VNCProtocol.MousePointerButton(rawValue: AppleStandardWire.pointerMask(buttons.rawValue)) : buttons
+        let pointerEvent = VNCProtocol.PointerEvent(buttons: mapped,
 													position: position)
 
 		clientToServerMessageQueue.enqueue(pointerEvent, replaceable: coalesceMove)

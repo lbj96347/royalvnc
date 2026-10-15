@@ -36,6 +36,7 @@ extension VNCConnection {
 							 screens: [VNCScreen],
 							 pixelFormat: VNCProtocol.PixelFormat) {
 		state.incrementalUpdatesEnabled = false
+        if settings.isAppleStandardEnabled { appleStandard.needsRearm = true }
 
 		let newFramebuffer: VNCFramebuffer
 
