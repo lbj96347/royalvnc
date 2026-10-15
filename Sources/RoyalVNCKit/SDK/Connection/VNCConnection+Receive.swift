@@ -107,6 +107,7 @@ private extension VNCConnection {
             transferAndDecodeSeconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000,
             networkReadSeconds: Double(connection.readWaitNanoseconds - startReadWait) / 1_000_000_000,
             encodingBytes: framebufferUpdate.encodingBytes,
+            encodingProcessingSeconds: framebufferUpdate.encodingProcessingSeconds,
             pixelRectangleCount: framebufferUpdate.rectangles.count,
             updatedPixels: framebufferUpdate.rectangles.reduce(0) {
                 $0 + UInt64($1.width) * UInt64($1.height)

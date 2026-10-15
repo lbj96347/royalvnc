@@ -81,6 +81,12 @@ public final class VNCConnection: NSObjectOrAnyObject {
         handshakeLock.withLock { currentHandshakePhase = phase }
     }
 
+    /// Changes paced Adaptive/Balanced requests. Input and idle backoff stay independent.
+    public func setMaximumFramebufferRequestsPerSecond(_ fps: Int) {
+        framebufferRequestGate.setMaximumFramesPerSecond(fps)
+        outboundWake.signal()
+    }
+
     public var receivedByteCount: UInt64 { connection.receivedByteCount }
 
     lazy var connection: CountingNetworkConnection = {

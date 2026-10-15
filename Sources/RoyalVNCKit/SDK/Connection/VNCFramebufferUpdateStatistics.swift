@@ -14,6 +14,8 @@ public struct VNCFramebufferUpdateStatistics: Sendable {
     public var decodeSeconds: TimeInterval { max(0, transferAndDecodeSeconds - networkReadSeconds) }
     /// Encoding ID to bytes consumed by its rectangle headers and payloads, including pseudo encodings.
     public let encodingBytes: [Int64: UInt64]
+    /// Parser/codec work by encoding, excluding network reads and snapshot callbacks.
+    public let encodingProcessingSeconds: [Int64: TimeInterval]
     public let pixelRectangleCount: Int
     public let updatedPixels: UInt64
 }

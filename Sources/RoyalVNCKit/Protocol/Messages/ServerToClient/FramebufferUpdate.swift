@@ -4,6 +4,8 @@ import FoundationEssentials
 import Foundation
 #endif
 
+import Dispatch
+
 extension VNCProtocol {
 	struct FramebufferUpdate: VNCReceivableMessage {
 		static let messageType: UInt8 = 0
@@ -11,6 +13,7 @@ extension VNCProtocol {
 		let messageType: UInt8
 		let rectangles: [VNCProtocol.Rectangle]
         let encodingBytes: [Int64: UInt64]
+        let encodingProcessingSeconds: [Int64: TimeInterval]
 	}
 }
 
@@ -35,6 +38,7 @@ extension VNCProtocol.FramebufferUpdate {
 
 		var rectangles = [VNCProtocol.Rectangle]()
         var encodingBytes: [Int64: UInt64] = [:]
+        var encodingProcessingSeconds: [Int64: TimeInterval] = [:]
         
         var activeFramebuffer = framebuffer
         activeFramebuffer.beginBatchUpdates()
@@ -64,11 +68,17 @@ extension VNCProtocol.FramebufferUpdate {
 			if let frameEncoding = encoding as? VNCFrameEncoding {
 				logger.logDebug("Decoding frame rectangle \(idx + 1)/\(numberOfRectangles)")
 
+                let decodeStarted = DispatchTime.now().uptimeNanoseconds
+                let readsStarted = (connection as? CountingNetworkConnection)?.readWaitNanoseconds ?? 0
                 willDecodePixelRectangle?()
 				try await frameEncoding.decodeRectangle(rectangle,
 														framebuffer: activeFramebuffer,
 														connection: connection,
 														logger: logger)
+
+                let elapsed = DispatchTime.now().uptimeNanoseconds - decodeStarted
+                let reads = ((connection as? CountingNetworkConnection)?.readWaitNanoseconds ?? readsStarted) - readsStarted
+                encodingProcessingSeconds[Int64(encodingType), default: 0] += Double(elapsed > reads ? elapsed - reads : 0) / 1_000_000_000
 
 				logger.logDebug("Finished decoding frame rectangle \(idx + 1)/\(numberOfRectangles)")
 
@@ -109,6 +119,7 @@ extension VNCProtocol.FramebufferUpdate {
 		}
 
 		return .init(messageType: Self.messageType,
-					 rectangles: rectangles, encodingBytes: encodingBytes)
+					 rectangles: rectangles, encodingBytes: encodingBytes,
+                     encodingProcessingSeconds: encodingProcessingSeconds)
 	}
 }

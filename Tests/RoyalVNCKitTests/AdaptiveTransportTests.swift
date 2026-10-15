@@ -2,6 +2,40 @@ import XCTest
 @testable import RoyalVNCKit
 
 final class AdaptiveTransportTests: XCTestCase {
+    func testRuntimeRateChangePreservesOutstandingRequestAndIdleBackoff() {
+        let gate = VNCFramebufferRequestGate()
+        gate.sentInitialRequest(at: 0)
+        gate.setMaximumFramesPerSecond(60)
+        XCTAssertFalse(gate.takeRequest(policy: .adaptive, at: 20_000_000))
+        gate.completedUpdate(hasPixelChanges: true, at: 1)
+        XCTAssertFalse(gate.takeRequest(policy: .adaptive, at: 16_666_666))
+        XCTAssertTrue(gate.takeRequest(policy: .adaptive, at: 16_666_667))
+        gate.completedUpdate(hasPixelChanges: true, at: 20_000_000)
+        gate.setMaximumFramesPerSecond(15)
+        XCTAssertFalse(gate.takeRequest(policy: .adaptive, at: 83_333_333))
+        XCTAssertTrue(gate.takeRequest(policy: .adaptive, at: 83_333_334))
+        gate.completedUpdate(at: 90_000_000)
+        gate.setMaximumFramesPerSecond(60)
+        XCTAssertFalse(gate.takeRequest(policy: .adaptive, at: 583_333_333))
+        XCTAssertTrue(gate.takeRequest(policy: .adaptive, at: 583_333_334))
+    }
+
+    func testRateCeilingDoesNotAccelerateLowDataOrBypassStop() {
+        let gate = VNCFramebufferRequestGate()
+        gate.sentInitialRequest(at: 0)
+        gate.setMaximumFramesPerSecond(1000) // Bounded to 60.
+        gate.completedUpdate(hasPixelChanges: true, at: 1)
+        gate.noteInput(at: 1)
+        XCTAssertFalse(gate.takeRequest(policy: .lowData, at: 99_999_999))
+        XCTAssertTrue(gate.takeRequest(policy: .lowData, at: 100_000_000))
+        gate.completedUpdate(hasPixelChanges: true, at: 100_000_001)
+        gate.setMaximumFramesPerSecond(0) // Bounded to one.
+        XCTAssertFalse(gate.takeRequest(policy: .balanced, at: 1_099_999_999))
+        gate.stop()
+        gate.setMaximumFramesPerSecond(60)
+        XCTAssertFalse(gate.takeRequest(policy: .adaptive, at: 2_000_000_000))
+    }
+
     func testAppleScalingWireFormatUsesBigEndianDouble() {
         XCTAssertEqual(VNCProtocol.AppleServerScale(scale: 0.5).data,
                        Data([8, 0, 0x3f, 0xe0, 0, 0, 0, 0, 0, 0]))

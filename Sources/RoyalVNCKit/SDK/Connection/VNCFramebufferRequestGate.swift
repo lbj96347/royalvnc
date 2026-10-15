@@ -13,6 +13,7 @@ public enum VNCFramebufferRequestPolicy: Sendable {
 /// The send loop owns the actual writes; receive and input callbacks only update this state.
 final class VNCFramebufferRequestGate {
     private let lock = NSLock()
+    private var activeInterval: UInt64 = 33_333_334
     private var pending = false
     private var outstanding = true // The handshake sends the first, full request.
     private var stopped = false
@@ -20,6 +21,13 @@ final class VNCFramebufferRequestGate {
     private var lastRequest: UInt64 = 0
     private var lastInput: UInt64?
     private var lastMotion: UInt64?
+
+    /// A rate ceiling cannot create a request or bypass one already outstanding.
+    func setMaximumFramesPerSecond(_ fps: Int) {
+        lock.lock()
+        activeInterval = UInt64((1_000_000_000.0 / Double(max(1, min(60, fps)))).rounded(.up))
+        lock.unlock()
+    }
 
     func sentInitialRequest(at now: UInt64 = DispatchTime.now().uptimeNanoseconds) {
         lock.lock()
@@ -67,11 +75,11 @@ final class VNCFramebufferRequestGate {
 
     private func requestInterval(policy: VNCFramebufferRequestPolicy, at now: UInt64) -> UInt64 {
         if policy == .adaptive {
-            return lastUpdateHadPixels ? 33_333_334 : 500_000_000
+            return lastUpdateHadPixels ? activeInterval : 500_000_000
         }
         let active = lastInput.map { now >= $0 && now - $0 < 2_000_000_000 } ?? false
         let motion = policy == .balanced && (lastMotion.map { now >= $0 && now - $0 < 2_000_000_000 } ?? false)
-        return (active || motion) ? (policy == .balanced ? 33_333_334 : 100_000_000) : 500_000_000
+        return (active || motion) ? (policy == .balanced ? activeInterval : 100_000_000) : 500_000_000
     }
 
     func stop() {
