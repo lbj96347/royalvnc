@@ -26,3 +26,11 @@ establish interoperability with every macOS version.
 - Add opt-in encoding 1011 (Apple MVS) with a JavaScriptCore adapter for the bundled noVNC-ARD decoder, revision d699293635083c9e0c30c8f9480993865653772a. Full-image Rice/DCT, partial refinement/Huffman, quantization, match tiles, and caches are implemented. Payload/canvas limits, strict decode failures, framebuffer identity resets, and BGRA/native framebuffer integration are enforced. Quantization and skip-only updates do not claim pixel readiness.
 - JavaScript source and MPL-2.0 license ship in the AppleMVS resource bundle. Source modules are loaded locally, with module declarations flattened; warnings become fatal decode failures. There is no remote script loading. See the bundled PROVENANCE.md.
 - Add synthetic decoder tests for expected pixels, refinement against a full baseline, cache reuse, quantization, unaligned/edge tiles, truncation, invalid markers, and malformed geometry. Live Mac capture interoperability and device performance are not established.
+
+## Standard ARD authentication performance — 2026-10-15
+
+A live Debug Standard connection completed TCP setup but remained inside CryptoSwift CS.BigUInt modular exponentiation until RemoteLah's 25-second deadline. The host supplied a large ARD challenge; no desktop request was reached.
+
+The existing CS_BigInt sources from CryptoSwift revision a59b4d91ebb22011656c830f874fe7152e183a57 now build as private target ARDMath with `-O` in Debug. BigNum imports that module. This retains the same algorithms, random private-key generation, key widths and serialization; the rest of the application remains debuggable. Original source notices and both relevant licenses ship in the ARDMath resource directory. This product includes software developed by the "Marcin Krzyzanowski" (http://krzyzanowskim.com/).
+
+Added a 4096-bit fixture using OpenSSL's named ffdhe4096 parameters and independently generated Python modular exponentiation results. Both public and shared outputs must match and finish comfortably within the startup budget. Added bounded ARD challenge lengths (up to 8192 bits), cancellation checks around authentication computation, and coarse credential-free handshake phases for accurate timeout diagnosis.

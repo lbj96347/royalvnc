@@ -14,6 +14,7 @@ extension VNCConnection {
 // MARK: - Handshaking Phase Implementation
 private extension VNCConnection {
 	func receiveProtocolVersion() async throws {
+        setHandshakePhase(.protocolVersion)
 		let protocolVersion: VNCProtocol.ProtocolVersion
 
 		do {
@@ -61,6 +62,7 @@ private extension VNCConnection {
 	}
 
 	func receiveNumberOfSecurityTypes() async throws {
+        setHandshakePhase(.securityTypes)
 		let number: UInt8
 
 		do {
@@ -184,10 +186,14 @@ private extension VNCConnection {
 	}
 
 	func performARDAuthentication() async throws {
+        setHandshakePhase(.accountChallenge)
 		let auth = try await VNCProtocol.ARDAuthentication.receive(connection: connection)
 
-		let credential = try await askDelegateForUsernamePasswordCredential(authenticationType: auth.authenticationType)
+		setHandshakePhase(.credentials)
+        let credential = try await askDelegateForUsernamePasswordCredential(authenticationType: auth.authenticationType)
 
+        setHandshakePhase(.keyAgreement)
+        logger.logInfo("ARD key agreement started keyBytes=\(auth.keySize)")
 		try await auth.send(connection: connection,
 							credential: credential)
 	}
@@ -202,6 +208,7 @@ private extension VNCConnection {
 	}
 
 	func receiveSecurityTypeResult() async throws {
+        setHandshakePhase(.authenticationResult)
 		let result: VNCProtocol.SecurityResult
 
 		do {
@@ -233,6 +240,7 @@ private extension VNCConnection {
 	}
 
 	func sendClientInit() async throws {
+        setHandshakePhase(.serverInit)
 		let isShared = settings.isShared
 
 		do {

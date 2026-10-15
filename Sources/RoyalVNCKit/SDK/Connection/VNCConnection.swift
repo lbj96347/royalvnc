@@ -74,6 +74,13 @@ public final class VNCConnection: NSObjectOrAnyObject {
 
     var mouseButtonState: VNCProtocol.MousePointerButton = [ ]
 
+    private let handshakeLock = NSLock()
+    private var currentHandshakePhase: VNCHandshakePhase = .connecting
+    public var handshakePhase: VNCHandshakePhase { handshakeLock.withLock { currentHandshakePhase } }
+    func setHandshakePhase(_ phase: VNCHandshakePhase) {
+        handshakeLock.withLock { currentHandshakePhase = phase }
+    }
+
     public var receivedByteCount: UInt64 { connection.receivedByteCount }
 
     lazy var connection: CountingNetworkConnection = {
@@ -389,6 +396,7 @@ private extension VNCConnection {
                 return
 			}
 
+            setHandshakePhase(.ready)
 			updateConnectionState(.connected)
 
 			startReceiveLoop()

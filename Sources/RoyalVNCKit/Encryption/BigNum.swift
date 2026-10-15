@@ -4,8 +4,8 @@ import FoundationEssentials
 import Foundation
 #endif
 
-// MARK: - CryptoSwift Implementation
-@_implementationOnly import CryptoSwift
+// MARK: - Optimized ARD arithmetic (same CryptoSwift CS_BigInt sources)
+@_implementationOnly import ARDMath
 
 final class BigNum {
     private var bigInt: BigUInteger

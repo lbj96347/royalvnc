@@ -56,6 +56,8 @@ let package = Package(
     ],
 
     targets: [
+        .target(name: "ARDMath", swiftSettings: [.swiftLanguageMode(swiftLanguageMode), .unsafeFlags(["-O"], .when(configuration: .debug))]),
+
         .target(
             name: "RoyalVNCKitC"
         ),
@@ -65,13 +67,14 @@ let package = Package(
 
             dependencies: [
                 "RoyalVNCKitC",
+                "ARDMath",
                 .byName(name: d3desTarget.name),
                 .byName(name: zTarget.name),
                 .byName(name: "CryptoSwift"),
                 .product(name: "stb_image", package: "Cstb", condition: .when(platforms: [ .linux, .windows, .android ]))
             ],
 
-            resources: [.copy("Resources/AppleMVS")],
+            resources: [.copy("Resources/AppleMVS"), .copy("Resources/ARDMath")],
 
             swiftSettings: [
                 .swiftLanguageMode(swiftLanguageMode),
@@ -82,7 +85,7 @@ let package = Package(
             ]
         ),
 
-        .testTarget(name: "RoyalVNCKitTests", dependencies: ["RoyalVNCKit"]),
+        .testTarget(name: "RoyalVNCKitTests", dependencies: ["RoyalVNCKit"], resources: [.copy("Fixtures")]),
 
         d3desTarget,
         zTarget,

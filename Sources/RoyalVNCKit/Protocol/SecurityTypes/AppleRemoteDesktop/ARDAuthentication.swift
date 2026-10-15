@@ -40,6 +40,7 @@ extension VNCProtocol.ARDAuthentication {
 	static func receive(connection: NetworkConnectionReading) async throws -> Self {
 		let generator = try await connection.readBuffered(length: 2)
 		let keySize = try await connection.readUInt16()
+        guard keySize > 0, keySize <= 1024 else { throw VNCError.protocol(.invalidData) }
 		let prime = try await connection.readBuffered(length: .init(keySize))
 		let peerKey = try await connection.readBuffered(length: .init(keySize))
 
@@ -55,7 +56,9 @@ extension VNCProtocol.ARDAuthentication {
 
 	func send(connection: NetworkConnectionWriting,
 			  credential: VNCUsernamePasswordCredential) async throws {
+        try Task.checkCancellation()
 		let authentication = try authenticate(credential: credential)
+        try Task.checkCancellation()
 
 		let cipherText = authentication.cipherText
 		let publicKey = authentication.publicKey
