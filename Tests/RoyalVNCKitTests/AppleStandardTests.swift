@@ -97,6 +97,10 @@ extension AppleStandardTests {
         XCTAssertEqual(wire.subscriptions, subscriptions+2)
         XCTAssertFalse(wire.outboundEncodings.contains(1010))
         XCTAssertFalse(wire.outboundEncodings.contains(1110))
+        try wire.enqueueServer(Data([0,0,0,1,0,0,0,0,0x4e,0x20,0,1,255,255,255,33]))
+        do { try await client.receive(); XCTFail("Oversized resize must fail before allocating a surface") }
+        catch { XCTAssertTrue(error is AppleStandardError) }
+        XCTAssertEqual(client.framebuffer?.size, VNCSize(width: 3, height: 1))
     }
 }
 

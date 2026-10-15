@@ -140,6 +140,7 @@ public final class VNCConnection: NSObjectOrAnyObject {
 
         if settings.isAppleStandardEnabled {
             encs[1002] = VNCProtocol.AppleThousandsEncoding()
+            encs[VNCPseudoEncodingType.desktopSize.rawValue] = VNCProtocol.DesktopSizeEncoding(maximumPixels: 33_554_432)
             for id: VNCEncodingType in [1103,1104,1105] {
                 encs[id] = VNCProtocol.AppleStandardMetadataEncoding(encodingType: id, session: appleStandard,
                     layout: { [weak self] data in self?.applyAppleLayout(data) })
