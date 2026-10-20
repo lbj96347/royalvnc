@@ -91,12 +91,15 @@ public final class VNCConnection: NSObjectOrAnyObject {
 
     public var receivedByteCount: UInt64 { connection.receivedByteCount }
 
+    private var byteTransport: (any VNCByteTransport)?
+
     lazy var connection: CountingNetworkConnection = {
         let connectionSettings = NetworkConnectionSettings(connectionTimeout: 15,
                                                            host: settings.hostname,
                                                            port: settings.port)
 
-        let connection = CountingNetworkConnection(settings: connectionSettings)
+        let connection = byteTransport.map { CountingNetworkConnection(base: ByteTransportNetworkConnection(transport: $0)) }
+            ?? CountingNetworkConnection(settings: connectionSettings)
 
         connection.setStatusUpdateHandler(connectionStatusDidChange)
 
@@ -255,6 +258,14 @@ public final class VNCConnection: NSObjectOrAnyObject {
         super.init()
 
         self.clipboardMonitor.delegate = self
+    }
+
+    /// Additive transport injection; authentication, encryption and decoding stay unchanged.
+    public convenience init(settings: Settings, logger: VNCLogger,
+                            framebufferAllocator: VNCFramebufferAllocator?,
+                            context: UnsafeMutableRawPointer?, byteTransport: any VNCByteTransport) {
+        self.init(settings: settings, logger: logger, framebufferAllocator: framebufferAllocator, context: context)
+        self.byteTransport = byteTransport
     }
 
 #if canImport(ObjectiveC)
