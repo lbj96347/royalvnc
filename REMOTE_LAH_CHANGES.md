@@ -38,3 +38,7 @@ Added a 4096-bit fixture using OpenSSL's named ffdhe4096 parameters and independ
 ## Optional ordered byte transport for RemoteLah remote login
 
 Adds `VNCByteTransport` and an additive `VNCConnection` initializer accepting it. Existing initializers retain their TCP transport. The adapter keeps existing ARD authentication, Apple record encryption, framebuffer decoding, and byte accounting. Transport cancellation must unblock pending I/O. RemoteLah validates this addition with its injected Standard authentication/rendering fixture; physical macOS console login and tunnel handoff remain gated. The API is additive so RemoteLah can pin this revision for ordinary Mac and iOS builds; existing TCP callers require no changes.
+
+## Locked console DesktopSize startup
+
+Synchronize the request dimensions after successfully recreating a framebuffer. A locked console can advertise 0x0 in ServerInit and announce its real size using DesktopSize before the encryption update. Previously the surface resized but the Apple Standard request guard retained 0x0, suppressing both full-picture requests and automatic subscriptions indefinitely. A synthetic encrypted regression now waits for the client request before supplying pixels. Initial geometry is logged numerically without desktop names or credentials.

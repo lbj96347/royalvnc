@@ -275,6 +275,7 @@ private extension VNCConnection {
 		logger.logDebug("Received Server Init \(serverInit)")
 
         if settings.isAppleStandardEnabled {
+            logger.logInfo("Apple Standard initial desktop width=\(serverInit.framebufferWidth) height=\(serverInit.framebufferHeight)")
             guard serverInit.framebufferWidth <= 16384, serverInit.framebufferHeight <= 16384,
                   Int(serverInit.framebufferWidth) * Int(serverInit.framebufferHeight) <= 33_554_432 else {
                 throw AppleStandardError.invalidMessage

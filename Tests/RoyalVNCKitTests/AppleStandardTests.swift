@@ -59,6 +59,27 @@ final class AppleStandardTests: XCTestCase {
 }
 
 extension AppleStandardTests {
+    func testZeroSizedLoginDesktopRequestsPixelsAfterDesktopSize() async throws {
+        let wire = SyntheticAppleWire(initiallyZeroSized: true)
+        let client = VNCConnection(settings: .init(isDebugLoggingEnabled: false, hostname: "fixture", port: 5900,
+            isShared: true, isScalingEnabled: false, useDisplayLink: false,
+            inputMode: .none, isClipboardRedirectionEnabled: false,
+            colorDepth: .depth24Bit, frameEncodings: [.zlib,.zrle], isAppleStandardEnabled: true))
+        let delegate = SyntheticAppleDelegate()
+        client.delegate = delegate
+        client.connection = CountingNetworkConnection(base: wire)
+        try await client.handshake()
+        XCTAssertEqual(client.state.framebufferWidth, 0)
+        try await client.finishAppleStandardEncryption()
+        try await client.sendFramebufferUpdateRequest()
+        XCTAssertEqual(client.state.framebufferWidth, 2)
+        XCTAssertEqual(client.state.framebufferHeight, 1)
+        XCTAssertGreaterThan(wire.subscriptions, 0)
+        XCTAssertGreaterThan(wire.fullRequests, 0)
+        try await client.receive()
+        XCTAssertEqual(delegate.pixelUpdates, 1)
+    }
+
     func testFragmentedEnhancedLoginEncryptionPushPixelsAndInputWithoutPolling() async throws {
         let wire = SyntheticAppleWire()
         let client = VNCConnection(settings: .init(isDebugLoggingEnabled: false, hostname: "fixture", port: 5900,
@@ -133,7 +154,9 @@ private final class SyntheticAppleWire: NetworkConnection {
     private(set) var subscriptions = 0
     private(set) var outboundEncodings: [Int32] = []
     private(set) var receivedInput = Data()
-    init() {}
+    private var initiallyZeroSized = false
+    private var sentPixels = false
+    init(initiallyZeroSized: Bool = false) { self.initiallyZeroSized = initiallyZeroSized }
     required init(settings: NetworkConnectionSettings) {}
     func setStatusUpdateHandler(_ handler: NetworkConnectionStatusUpdateHandler?) {}
     func cancel() {}
@@ -148,7 +171,13 @@ private final class SyntheticAppleWire: NetworkConnection {
         if encrypted {
             let body = try receiver!.open(Data(data.dropFirst(2)))
             if body.first == 4 { receivedInput = body }
-            if body.first == 3 { fullRequests += 1 }
+            if body.first == 3 {
+                fullRequests += 1
+                if initiallyZeroSized && !sentPixels {
+                    sentPixels = true
+                    try enqueueServer(Data([0,0,0,1,0,0,0,0,0,2,0,1,0,0,0,0,50,70,90,255,50,70,90,255]))
+                }
+            }
             if body.first == 9 || (body.first == 3 && body.count > 10 && body[10] == 9) { subscriptions += 1 }
             return
         }
@@ -167,7 +196,7 @@ private final class SyntheticAppleWire: NetworkConnection {
             clientInit = data[0]
             let pixelFormat = Data([32,24,0,1,0,255,0,255,0,255,16,8,0,0,0,0])
             let name = Data([0,0]) + AppleStandardWire.be(UInt32(0)) + Data(repeating: 0, count: 16) + Data("Fixture\0".utf8)
-            incoming += Data([0,2,0,1]) + pixelFormat + AppleStandardWire.be(UInt32(name.count)) + name; stage = 5
+            incoming += (initiallyZeroSized ? Data([0,0,0,0]) : Data([0,2,0,1])) + pixelFormat + AppleStandardWire.be(UInt32(name.count)) + name; stage = 5
         default:
             if data.first == 2 {
                 let count = Int(data[2])*256 + Int(data[3])
@@ -177,6 +206,10 @@ private final class SyntheticAppleWire: NetworkConnection {
                 let cipher = try AES(key: Array(key), blockMode: ECB(), padding: .noPadding)
                 let sessionKey = Data(0..<16), iv = Data(16..<32)
                 let payload = AppleStandardWire.be(UInt32(1)) + Data(try cipher.encrypt(Array(sessionKey))) + Data(try cipher.encrypt(Array(iv)))
+                if initiallyZeroSized {
+                    // Locked console announces geometry separately before encryption.
+                    incoming += Data([0,0,0,1,0,0,0,0,0,2,0,1,255,255,255,33])
+                }
                 incoming += Data([0,0,0,1]) + Data(repeating: 0, count: 8) + AppleStandardWire.be(UInt32(1103)) + payload
                 sender = try AppleStandardRecords(key: sessionKey, iv: iv)
                 receiver = try AppleStandardRecords(key: sessionKey, iv: iv)
@@ -184,6 +217,7 @@ private final class SyntheticAppleWire: NetworkConnection {
             if data.first == 3 { fullRequests += 1 }
             if data == AppleStandardWire.encryptionAck {
                 encrypted = true
+                if initiallyZeroSized { return }
                 let pixels = Data([0,0,0,1,0,0,0,0,0,2,0,1,0,0,0,0, 50,70,90,255,50,70,90,255])
                 // A single framebuffer message split across two encrypted records.
                 incoming += try sender!.seal(Data(pixels.prefix(7)))

@@ -63,6 +63,11 @@ extension VNCConnection {
 		newFramebuffer.delegate = self
 
 		self.framebuffer = newFramebuffer
+        // ServerInit may advertise 0x0 while the locked console is starting.
+        // DesktopSize is authoritative once a surface has been allocated. Keep
+        // the request guard in sync so the first full update can be requested.
+        state.framebufferWidth = size.width
+        state.framebufferHeight = size.height
 
 		notifyDelegateAboutFramebufferResize(newFramebuffer)
 	}
