@@ -1,6 +1,29 @@
 import Foundation
 
 extension VNCConnection {
+    /// Renegotiate Full quality on the existing encrypted Standard connection.
+    /// Decoders stay installed so any already-in-flight Adaptive rectangles remain readable.
+    /// Returns false unless an encrypted physical-desktop session is ready for requests.
+    public func requestAppleStandardFullQuality() -> Bool {
+        guard settings.isAppleStandardEnabled, !state.disconnectRequested,
+              connection.isReady, connection.isAppleEncrypted,
+              let framebuffer, state.framebufferWidth > 0, state.framebufferHeight > 0,
+              let offered = try? orderedEncodingTypes() else { return false }
+        let width = framebuffer.size.width, height = framebuffer.size.height
+        guard width > 0, height > 0 else { return false }
+        let encodings = offered.filter { $0 != 1011 && $0 != 1002 }
+        var message = Data([2,0]) + AppleStandardWire.be(UInt16(encodings.count))
+        for encoding in encodings { message += AppleStandardWire.be(Int32(encoding.rawValue)) }
+        message += Data([3,0,0,0,0,0]) + AppleStandardWire.be(width) + AppleStandardWire.be(height)
+        message += AppleStandardWire.automaticUpdates(width: width, height: height)
+        // Use the normal writer queue: input, key acknowledgements, and this request
+        // share record encryption and outbound serialization. Never reopen authentication.
+        enqueueClientToServerMessage(AppleStandardMessage(data: message))
+        (delegate as? VNCFramebufferStatisticsObserver)?.framebufferUpdateRequested(incremental: false)
+        (delegate as? VNCUpdateTimingObserver)?.framebufferUpdateRequested()
+        return true
+    }
+
     func selectApplePhysicalSession() async throws {
         let length = Int(try await connection.readUInt16())
         guard (10...4096).contains(length) else { throw AppleStandardError.invalidMessage }

@@ -59,6 +59,35 @@ final class AppleStandardTests: XCTestCase {
 }
 
 extension AppleStandardTests {
+    func testFullQualityRenegotiationStaysOnEncryptedConnection() async throws {
+        let wire = SyntheticAppleWire()
+        let client = VNCConnection(settings: .init(isDebugLoggingEnabled: false, hostname: "fixture", port: 5900,
+            isShared: true, isScalingEnabled: false, useDisplayLink: false, inputMode: .none,
+            isClipboardRedirectionEnabled: false, colorDepth: .depth24Bit,
+            frameEncodings: [.appleMVS,.appleThousands,.zlib,.zrle], isAppleStandardEnabled: true))
+        let delegate = SyntheticAppleDelegate()
+        client.delegate = delegate
+        client.connection = CountingNetworkConnection(base: wire)
+        XCTAssertFalse(client.requestAppleStandardFullQuality())
+        try await client.handshake()
+        XCTAssertFalse(client.requestAppleStandardFullQuality(), "Never enqueue a cleartext quality fallback")
+        try await client.finishAppleStandardEncryption()
+        let requests = wire.fullRequests
+        let subscriptions = wire.subscriptions
+        XCTAssertTrue(client.requestAppleStandardFullQuality())
+        let message = try XCTUnwrap(client.clientToServerMessageQueue.dequeue())
+        try await message.send(connection: client.connection)
+        XCTAssertEqual(Array(wire.outboundEncodings.prefix(2)), [6,16])
+        XCTAssertFalse(wire.outboundEncodings.contains(1011))
+        XCTAssertFalse(wire.outboundEncodings.contains(1002))
+        XCTAssertEqual(wire.fullRequests, requests + 1)
+        XCTAssertEqual(wire.subscriptions, subscriptions + 1)
+        // An Adaptive picture already queued by the server is still accepted.
+        try await client.receive()
+        XCTAssertEqual(delegate.pixelUpdates, 1)
+        XCTAssertTrue(client.isAppleStandardEncrypted)
+    }
+
     func testZeroSizedLoginDesktopRequestsPixelsAfterDesktopSize() async throws {
         let wire = SyntheticAppleWire(initiallyZeroSized: true)
         let client = VNCConnection(settings: .init(isDebugLoggingEnabled: false, hostname: "fixture", port: 5900,
@@ -169,7 +198,12 @@ private final class SyntheticAppleWire: NetworkConnection {
     }
     func write(data: Data) async throws {
         if encrypted {
-            let body = try receiver!.open(Data(data.dropFirst(2)))
+            var body = try receiver!.open(Data(data.dropFirst(2)))
+            if body.first == 2 {
+                let count = Int(body[2]) * 256 + Int(body[3])
+                outboundEncodings = (0..<count).map { Int32(bitPattern: AppleStandardWire.u32(body, 4 + $0 * 4)) }
+                body = Data(body.dropFirst(4 + count * 4))
+            }
             if body.first == 4 { receivedInput = body }
             if body.first == 3 {
                 fullRequests += 1

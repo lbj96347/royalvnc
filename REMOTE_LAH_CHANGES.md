@@ -42,3 +42,7 @@ Adds `VNCByteTransport` and an additive `VNCConnection` initializer accepting it
 ## Locked console DesktopSize startup
 
 Synchronize the request dimensions after successfully recreating a framebuffer. A locked console can advertise 0x0 in ServerInit and announce its real size using DesktopSize before the encryption update. Previously the surface resized but the Apple Standard request guard retained 0x0, suppressing both full-picture requests and automatic subscriptions indefinitely. A synthetic encrypted regression now waits for the client request before supplying pixels. Initial geometry is logged numerically without desktop names or credentials.
+
+## Standard Full-quality renegotiation
+
+Adds `requestAppleStandardFullQuality()` for an already encrypted physical-desktop connection. It queues lossless encoding preferences, a full framebuffer request, and the normal automatic subscription through the existing serialized writer. Authentication and record keys stay on the same connection. Installed decoders remain available for in-flight Adaptive rectangles. The method refuses sessions that have not established encryption. A synthetic encrypted test checks the exact encoding list and update/subscription counts.
